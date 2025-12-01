@@ -66,58 +66,30 @@ const createSuggestionsTable = `
 
 // Initialize database with all tables
 export const initializeDatabase = () => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(createUsersTable, (err) => {
-        if (err) {
-          console.error('Error creating users table:', err);
-          return reject(err);
-        }
-        console.log('Users table created or already exists');
-      });
+  try {
+    db.exec(createUsersTable);
+    console.log('Users table created or already exists');
 
-      db.run(createBooksTable, (err) => {
-        if (err) {
-          console.error('Error creating books table:', err);
-          return reject(err);
-        }
-        console.log('Books table created or already exists');
-      });
+    db.exec(createBooksTable);
+    console.log('Books table created or already exists');
 
-      db.run(createMessagesTable, (err) => {
-        if (err) {
-          console.error('Error creating messages table:', err);
-          return reject(err);
-        }
-        console.log('Messages table created or already exists');
-      });
+    db.exec(createMessagesTable);
+    console.log('Messages table created or already exists');
 
-      db.run(createLessonsTable, (err) => {
-        if (err) {
-          console.error('Error creating lessons table:', err);
-          return reject(err);
-        }
-        console.log('Lessons table created or already exists');
-      });
+    db.exec(createLessonsTable);
+    console.log('Lessons table created or already exists');
 
-      db.run(createFlashcardsTable, (err) => {
-        if (err) {
-          console.error('Error creating flashcards table:', err);
-          return reject(err);
-        }
-        console.log('Flashcards table created or already exists');
-      });
+    db.exec(createFlashcardsTable);
+    console.log('Flashcards table created or already exists');
 
-      db.run(createSuggestionsTable, (err) => {
-        if (err) {
-          console.error('Error creating suggestions table:', err);
-          return reject(err);
-        }
-        console.log('Suggestions table created or already exists');
-        resolve();
-      });
-    });
-  });
+    db.exec(createSuggestionsTable);
+    console.log('Suggestions table created or already exists');
+
+    return Promise.resolve();
+  } catch (err) {
+    console.error('Error creating tables:', err);
+    return Promise.reject(err);
+  }
 };
 
 export default {

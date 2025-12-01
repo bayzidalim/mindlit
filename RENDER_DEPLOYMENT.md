@@ -1,46 +1,51 @@
 # MindLit Backend Deployment Guide for Render
 
-## Problem
-The error "invalid ELF header" occurs because `sqlite3` has native bindings that were compiled on macOS but need to run on Linux (Render's servers).
+## Problem (Resolved)
+The error "invalid ELF header" occurred because `sqlite3` has native bindings that were compiled on macOS but needed to run on Linux (Render's servers).
 
-## Solution Applied
+## Solution Implemented
 
-### 1. Added Build Script
-Updated `backend/package.json` to include a `build` script that rebuilds native dependencies:
-```json
-"build": "npm rebuild"
-```
+### Migrated to better-sqlite3
+We've switched from `sqlite3` to `better-sqlite3`, which:
+- Has better cross-platform build support
+- Is faster and more modern
+- Uses a synchronous API (simpler code)
+- Doesn't have the same native binding deployment issues
 
-### 2. Created .npmrc
-Added `backend/.npmrc` to force building from source:
-```
-build-from-source=true
-```
+### Changes Made
 
-### 3. Created render.yaml
-Added a Render configuration file at the project root with proper build commands.
+1. **Updated package.json**
+   - Replaced `sqlite3` with `better-sqlite3`
+   - Removed unnecessary build script
+
+2. **Migrated database layer**
+   - Updated `src/config/database.js` to use better-sqlite3's synchronous API
+   - Updated `src/models/schema.js` to use `db.exec()` instead of callbacks
+
+3. **Updated render.yaml**
+   - Simplified build command (no need for rebuild step)
 
 ## Deployment Steps
 
 ### Option 1: Using render.yaml (Recommended)
-1. Commit all changes:
+1. Commit and push all changes:
    ```bash
    git add .
-   git commit -m "Fix: Configure Render deployment for native dependencies"
+   git commit -m "Migrate to better-sqlite3 for improved deployment"
    git push
    ```
 
 2. In Render Dashboard:
    - Go to your service
-   - Render should automatically detect the `render.yaml` file
-   - Or manually trigger a new deployment
+   - Render will automatically detect the `render.yaml` file
+   - Trigger a new deployment if it doesn't start automatically
 
 ### Option 2: Manual Configuration in Render Dashboard
 If you're not using the render.yaml file, configure these settings in Render:
 
 1. **Build Command:**
    ```
-   cd backend && npm install && npm run build
+   cd backend && npm install
    ```
 
 2. **Start Command:**
@@ -60,19 +65,6 @@ If you're not using the render.yaml file, configure these settings in Render:
    /api/health
    ```
 
-## Alternative Solution: Switch to better-sqlite3
-
-If the above solution doesn't work, you can switch to `better-sqlite3`, which has better deployment support:
-
-1. Install better-sqlite3:
-   ```bash
-   cd backend
-   npm uninstall sqlite3
-   npm install better-sqlite3
-   ```
-
-2. Update your database code to use better-sqlite3 (synchronous API)
-
 ## Verify Deployment
 
 After deployment, test the health endpoint:
@@ -85,14 +77,42 @@ Expected response:
 {"status":"ok","message":"MindLit API is running"}
 ```
 
+## Benefits of better-sqlite3
+
+- ✅ No native binding issues across platforms
+- ✅ Faster performance (synchronous operations)
+- ✅ Simpler code (no callbacks or promises for DB operations)
+- ✅ Better memory management
+- ✅ Supports modern SQLite features
+
+## Testing Locally
+
+Run the backend locally to verify:
+```bash
+cd backend
+npm install
+npm start
+```
+
+You should see:
+```
+Connected to SQLite database
+Users table created or already exists
+Books table created or already exists
+...
+Server is running on port 3000
+```
+
 ## Troubleshooting
 
-### If you still get the ELF error:
-1. Check Render logs to ensure `npm rebuild` is running
-2. Try clearing Render's build cache (in dashboard settings)
-3. Consider switching to better-sqlite3 (see alternative solution above)
-
 ### If deployment fails:
-1. Check that all environment variables are set
+1. Check that all environment variables are set in Render dashboard
 2. Verify the build command is correct
 3. Check Render logs for specific error messages
+4. Clear Render's build cache if needed (in dashboard settings)
+
+### If you see database errors:
+1. Ensure the database file path is correct
+2. Check file permissions
+3. Verify SQLite is enabled on Render (it is by default)
+

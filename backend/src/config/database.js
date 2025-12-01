@@ -1,4 +1,4 @@
-import sqlite3 from 'sqlite3';
+import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -8,40 +8,44 @@ const __dirname = dirname(__filename);
 const dbPath = join(__dirname, '../../mindlit.db');
 
 // Create database connection
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to SQLite database');
-  }
-});
+const db = new Database(dbPath);
 
-// Promisify database methods for easier async/await usage
+// Enable WAL mode for better concurrency
+db.pragma('journal_mode = WAL');
+
+console.log('Connected to SQLite database');
+
+// Helper functions for consistent API
 export const runQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
+  try {
+    const result = db.prepare(sql).run(params);
+    return { id: result.lastInsertRowid, changes: result.changes };
+  } catch (err) {
+    throw err;
+  }
 };
 
 export const getQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  try {
+    return db.prepare(sql).get(params);
+  } catch (err) {
+    throw err;
+  }
 };
 
 export const allQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  try {
+    return db.prepare(sql).all(params);
+  } catch (err) {
+    throw err;
+  }
 };
 
+// Close database on process exit
+process.on('exit', () => db.close());
+process.on('SIGHUP', () => process.exit(128 + 1));
+process.on('SIGINT', () => process.exit(128 + 2));
+process.on('SIGTERM', () => process.exit(128 + 15));
+
 export default db;
+
