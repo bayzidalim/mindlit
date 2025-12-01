@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AuthContext } from './AuthContext';
+import { ENV } from '../config/env';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -21,7 +22,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await axios.get('http://localhost:3000/api/auth/me', {
+      const response = await axios.get(`${ENV.API_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -41,7 +42,7 @@ export function AuthProvider({ children }) {
   // Login function
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/login', {
+      const response = await axios.post(`${ENV.API_URL}/auth/login`, {
         email,
         password
       });
@@ -62,7 +63,7 @@ export function AuthProvider({ children }) {
   // Register function
   const register = async (username, email, password) => {
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/register', {
+      const response = await axios.post(`${ENV.API_URL}/auth/register`, {
         username,
         email,
         password
