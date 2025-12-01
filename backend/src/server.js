@@ -28,6 +28,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'MindLit API is running' });
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'MindLit API is running' });
+});
+
+
 // Route imports
 import authRoutes from './routes/auth.js';
 import bookRoutes from './routes/books.js';
