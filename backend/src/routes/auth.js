@@ -1,5 +1,5 @@
 import express from 'express';
-import db from '../config/database.js';
+import { runQuery, getQuery } from '../config/database.js';
 import { generateToken, hashPassword, comparePassword, authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -45,31 +45,31 @@ router.post('/register', async (req, res, next) => {
       VALUES (?, ?, ?)
     `;
 
-    db.run(query, [username, email, passwordHash], function(err) {
-      if (err) {
-        // Handle unique constraint violations
-        if (err.message.includes('UNIQUE constraint failed: users.email')) {
-          return res.status(409).json({ error: 'Email already exists' });
-        }
-        if (err.message.includes('UNIQUE constraint failed: users.username')) {
-          return res.status(409).json({ error: 'Username already exists' });
-        }
-        return next(err);
-      }
+    try {
+      const result = runQuery(query, [username, email, passwordHash]);
 
       // Generate JWT token
-      const token = generateToken(this.lastID);
+      const token = generateToken(result.id);
 
       // Return success response
       res.status(201).json({
         token,
         user: {
-          id: this.lastID,
+          id: result.id,
           username,
           email
         }
       });
-    });
+    } catch (err) {
+      // Handle unique constraint violations
+      if (err.message.includes('UNIQUE constraint failed: users.email')) {
+        return res.status(409).json({ error: 'Email already exists' });
+      }
+      if (err.message.includes('UNIQUE constraint failed: users.username')) {
+        return res.status(409).json({ error: 'Username already exists' });
+      }
+      throw err;
+    }
   } catch (error) {
     next(error);
   }
@@ -90,35 +90,31 @@ router.post('/login', async (req, res, next) => {
     // Query user from database
     const query = `SELECT id, username, email, password_hash FROM users WHERE email = ?`;
 
-    db.get(query, [email], async (err, user) => {
-      if (err) {
-        return next(err);
+    const user = getQuery(query, [email]);
+
+    // Check if user exists
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Validate password
+    const isPasswordValid = await comparePassword(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Generate JWT token
+    const token = generateToken(user.id);
+
+    // Return success response
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
       }
-
-      // Check if user exists
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
-
-      // Validate password
-      const isPasswordValid = await comparePassword(password, user.password_hash);
-
-      if (!isPasswordValid) {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
-
-      // Generate JWT token
-      const token = generateToken(user.id);
-
-      // Return success response
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email
-        }
-      });
     });
   } catch (error) {
     next(error);
@@ -131,25 +127,21 @@ router.get('/me', authenticateToken, (req, res, next) => {
     // Query user from database using userId from token
     const query = `SELECT id, username, email, created_at FROM users WHERE id = ?`;
 
-    db.get(query, [req.userId], (err, user) => {
-      if (err) {
-        return next(err);
-      }
+    const user = getQuery(query, [req.userId]);
 
-      // Check if user exists
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
+    // Check if user exists
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-      // Return user information
-      res.json({
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          createdAt: user.created_at
-        }
-      });
+    // Return user information
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.created_at
+      }
     });
   } catch (error) {
     next(error);
